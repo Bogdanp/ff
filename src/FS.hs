@@ -4,10 +4,11 @@ module FS (
   , socketPath
 ) where
 
+import           Control.Applicative    ((<$>), (<*>))
 import           Control.Concurrent     (forkIO)
 import           Control.Concurrent.STM (TChan, atomically, writeTChan)
 import           Control.Monad          (filterM, liftM, (>=>))
-import           Data.List              (elemIndex, isPrefixOf)
+import           Data.List              (elemIndex, isPrefixOf, isSuffixOf)
 import           System.Directory       (doesDirectoryExist,
                                          getDirectoryContents,
                                          getUserDocumentsDirectory)
@@ -19,7 +20,8 @@ collect cc base = do
   atomically $ writeTChan cc fs
   directories fs
  where qualify     = mapM $ return . (base </>)
-       contentsOf  = filterM (return . not . isPrefixOf ".") =<< getDirectoryContents base
+       validFile   = (&&) <$> (not . isPrefixOf ".") <*> (not . isSuffixOf ".pyc")
+       contentsOf  = filterM (return . validFile) =<< getDirectoryContents base
        directories = filterM doesDirectoryExist >=> mapM_ (forkIO . collect cc)
 
 fuzzyMatch :: String -> FilePath -> Bool
