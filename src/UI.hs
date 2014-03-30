@@ -106,10 +106,10 @@ uiMain = do
 
   _ <- forkIO $ collect cc "."
   _ <- forkIO $ do
-    threadDelay 200000
+    threadDelay 250000
     whileM_ (liftM not $ atomically $ isEmptyTChan cc) $ do
       schedule refreshList
-      threadDelay 100
+      threadDelay 500
 
   fg `onKeyPressed` handleGlobal
 
