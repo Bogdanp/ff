@@ -1,0 +1,7 @@
+# Editor
+.*~undo-tree~
+
+# Cabal
+dist/
+.cabal-sandbox/
+cabal.sandbox.config

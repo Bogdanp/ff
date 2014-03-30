@@ -1,0 +1,32 @@
+name:                ff
+version:             0.1.0.0
+synopsis:            A fuzzy finder
+-- description:         
+homepage:            http://defn.io
+license:             MIT
+license-file:        LICENSE
+author:              Bogdan Popa
+maintainer:          popa.bogdanp@gmail.com
+copyright:           2014 Bogdan Popa
+category:            Development
+build-type:          Simple
+-- extra-source-files:  
+cabal-version:       >=1.10
+
+executable ff
+  main-is:             Main.hs
+  -- other-modules:       
+  -- other-extensions:    
+  build-depends:       base        >=4.6 && <4.7
+                     , containers  ==0.5.*
+                     , directory   ==1.2.*
+                     , filepath    ==1.3.*
+                     , monad-loops ==0.4.*
+                     , stm         ==2.4.*
+                     , text        ==0.11.*
+                     , unix        ==2.6.*
+                     , vty         ==4.7.*
+                     , vty-ui      ==1.6.*
+  ghc-options:         -Wall -O2 -threaded
+  hs-source-dirs:      src
+  default-language:    Haskell2010
