@@ -51,8 +51,8 @@ printSelection st = do
       isDir  <- doesDirectoryExist f
       socket <- socketPath
       writeFile socket $ (if isDir
-                          then "cd "
-                          else "$EDITOR ") ++ f ++ "\n"
+                          then "cd '"
+                          else "$EDITOR '") ++ f ++ "'\n"
       exitSuccess
 
 uiMain :: IO ()
@@ -86,8 +86,7 @@ uiMain = do
       refreshList = do t <- getEditText (uiInput st)
                        _ <- atomically $ do xs  <- readTChan cc
                                             xs' <- takeTMVar cs
-                                            let res = xs' ++ xs
-                                            putTMVar cs res
+                                            putTMVar cs $ xs' ++ xs
                        _ <- forkIO $ schedule $ updateList t
                        return ()
 
