@@ -7,7 +7,7 @@ import           Control.Concurrent       (forkIO)
 import           Control.Concurrent.STM   (atomically, isEmptyTChan, newTChan,
                                            newTMVar, putTMVar, readTChan,
                                            readTMVar, swapTMVar, takeTMVar)
-import           Control.Monad            (when)
+import           Control.Monad            (liftM, when)
 import           Control.Monad.Loops      (whileM_)
 import qualified Data.Text                as T
 import           Graphics.Vty
@@ -69,30 +69,35 @@ uiMain = do
 
   fg <- newFocusGroup
   _  <- addToCollection (uiCollection st) ui fg
-  _  <- addToFocusGroup fg (uiInput st)
-  _  <- addToFocusGroup fg (uiList st)
+  _  <- addToFocusGroup fg $ uiInput st
+  _  <- addToFocusGroup fg $ uiList st
 
-  let updateList :: T.Text -> IO ()
-      updateList t = do mli <- getSelected (uiList st)
-                        _   <- clearList (uiList st)
-                        xs  <- atomically (readTMVar cs)
-                        let fs = filter (fuzzyMatch $ T.unpack t) xs
-                            pg = show (length fs) ++ "/" ++ show (length xs)
-                        setText (uiProgress st) $ T.pack pg
-                        mapM_ appendItem $ take 100 fs
-                        case mli of
-                          Nothing     -> return ()
-                          Just (i, _) -> do
-                            size <- getListSize (uiList st)
-                            when (size > i) $ setSelected (uiList st) i
+  let query :: String -> [FilePath] -> [FilePath]
+      query s = filter $ fuzzyMatch s
+
+      updateList :: T.Text -> IO ()
+      updateList t = do
+        mli <- getSelected $ uiList st
+        xs  <- atomically $ readTMVar cs
+        let fs = query (T.unpack t) xs
+            pg = show (length fs) ++ "/" ++ show (length xs)
+        setText (uiProgress st) $ T.pack pg
+        clearList $ uiList st
+        mapM_ appendItem $ take 100 fs
+        case mli of
+          Nothing     -> return ()
+          Just (i, _) -> do
+            size <- getListSize $ uiList st
+            when (size > i) $ setSelected (uiList st) i
 
       refreshList :: IO ()
-      refreshList = do t <- getEditText (uiInput st)
-                       atomically $ do xs  <- readTChan cc
-                                       xs' <- takeTMVar cs
-                                       putTMVar cs $ xs' ++ xs
-                       schedule $ updateList t
-                       return ()
+      refreshList = do
+        query <- getEditText $ uiInput st
+        atomically $ do xs  <- readTChan cc
+                        xs' <- takeTMVar cs
+                        putTMVar cs $ xs' ++ xs
+        schedule $ updateList query
+        return ()
 
       appendItem :: String -> IO ()
       appendItem s = let text = T.pack s
@@ -105,14 +110,14 @@ uiMain = do
 
       handleCtrl :: Key -> IO ()
       handleCtrl k | k == KASCII 'c' = exitFailure
-                   | k == KASCII 'p' = scrollUp (uiList st)
-                   | k == KASCII 'n' = scrollDown (uiList st)
+                   | k == KASCII 'p' = scrollUp $ uiList st
+                   | k == KASCII 'n' = scrollDown $ uiList st
                    | k == KASCII 'w' = setEditText (uiInput st) T.empty
                    | otherwise       = return ()
 
       canRefresh :: IO Bool
-      canRefresh = atomically $ (||) <$> (readTMVar collecting)
-                                     <*> (isEmptyTChan cc >>= return . not)
+      canRefresh = atomically $ (||) <$> readTMVar collecting
+                                     <*> liftM not (isEmptyTChan cc)
 
   forkIO $ do
     collect cc "."
