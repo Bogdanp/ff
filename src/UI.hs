@@ -2,11 +2,12 @@
 
 module UI ( uiMain ) where
 
-import           Control.Concurrent       (forkIO, threadDelay)
+import           Control.Applicative      ((<$>), (<*>))
+import           Control.Concurrent       (forkIO)
 import           Control.Concurrent.STM   (atomically, isEmptyTChan, newTChan,
                                            newTMVar, putTMVar, readTChan,
-                                           readTMVar, takeTMVar)
-import           Control.Monad            (liftM, when)
+                                           readTMVar, swapTMVar, takeTMVar)
+import           Control.Monad            (when)
 import           Control.Monad.Loops      (whileM_)
 import qualified Data.Text                as T
 import           Graphics.Vty
@@ -57,8 +58,9 @@ printSelection st = do
 
 uiMain :: IO ()
 uiMain = do
-  cc <- atomically newTChan
-  cs <- atomically $ newTMVar []
+  cc         <- atomically newTChan
+  cs         <- atomically $ newTMVar []
+  collecting <- atomically $ newTMVar True
 
   st <- initialUI
   ui <- centered =<<      return (uiList st)
@@ -70,10 +72,11 @@ uiMain = do
   _  <- addToFocusGroup fg (uiInput st)
   _  <- addToFocusGroup fg (uiList st)
 
-  let updateList s = do mli <- getSelected (uiList st)
+  let updateList :: T.Text -> IO ()
+      updateList t = do mli <- getSelected (uiList st)
                         _   <- clearList (uiList st)
                         xs  <- atomically (readTMVar cs)
-                        let fs = filter (fuzzyMatch $ T.unpack s) xs
+                        let fs = filter (fuzzyMatch $ T.unpack t) xs
                             pg = show (length fs) ++ "/" ++ show (length xs)
                         setText (uiProgress st) $ T.pack pg
                         mapM_ appendItem $ take 100 fs
@@ -83,32 +86,40 @@ uiMain = do
                             size <- getListSize (uiList st)
                             when (size > i) $ setSelected (uiList st) i
 
+      refreshList :: IO ()
       refreshList = do t <- getEditText (uiInput st)
-                       _ <- atomically $ do xs  <- readTChan cc
-                                            xs' <- takeTMVar cs
-                                            putTMVar cs $ xs' ++ xs
-                       _ <- forkIO $ schedule $ updateList t
+                       atomically $ do xs  <- readTChan cc
+                                       xs' <- takeTMVar cs
+                                       putTMVar cs $ xs' ++ xs
+                       schedule $ updateList t
                        return ()
 
+      appendItem :: String -> IO ()
       appendItem s = let text = T.pack s
                       in plainText text >>= addToList (uiList st) text
 
+      handleGlobal :: a -> Key -> [Modifier] -> IO Bool
       handleGlobal _ k ms | k == KEnter     = activateCurrentItem (uiList st) >> return False
                           | MCtrl `elem` ms = handleCtrl k >> return False
                           | otherwise       = return False
 
+      handleCtrl :: Key -> IO ()
       handleCtrl k | k == KASCII 'c' = exitFailure
                    | k == KASCII 'p' = scrollUp (uiList st)
                    | k == KASCII 'n' = scrollDown (uiList st)
                    | k == KASCII 'w' = setEditText (uiInput st) T.empty
                    | otherwise       = return ()
 
-  _ <- forkIO $ collect cc "."
-  _ <- forkIO $ do
-    threadDelay 250000
-    whileM_ (liftM not $ atomically $ isEmptyTChan cc) $ do
-      schedule refreshList
-      threadDelay 500
+      canRefresh :: IO Bool
+      canRefresh = atomically $ (||) <$> (readTMVar collecting)
+                                     <*> (isEmptyTChan cc >>= return . not)
+
+  forkIO $ do
+    collect cc "."
+    atomically $ swapTMVar collecting False
+    return ()
+
+  forkIO $ whileM_ canRefresh refreshList
 
   fg `onKeyPressed` handleGlobal
 

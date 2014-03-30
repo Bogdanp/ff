@@ -5,7 +5,6 @@ module FS (
 ) where
 
 import           Control.Applicative    ((<$>), (<*>))
-import           Control.Concurrent     (forkIO)
 import           Control.Concurrent.STM (TChan, atomically, writeTChan)
 import           Control.Monad          (filterM, liftM, (>=>))
 import           Data.List              (elemIndex, isPrefixOf, isSuffixOf)
@@ -22,7 +21,7 @@ collect cc base = do
  where qualify     = mapM $ return . (base </>)
        validFile   = (&&) <$> (not . isPrefixOf ".") <*> (not . isSuffixOf ".pyc")
        contentsOf  = filterM (return . validFile) =<< getDirectoryContents base
-       directories = filterM doesDirectoryExist >=> mapM_ (forkIO . collect cc)
+       directories = filterM doesDirectoryExist >=> mapM_ (collect cc)
 
 fuzzyMatch :: String -> FilePath -> Bool
 fuzzyMatch    []  _ = True
