@@ -92,11 +92,11 @@ uiMain = do
 
       refreshList :: IO ()
       refreshList = do
-        query <- getEditText $ uiInput st
+        queryString <- getEditText $ uiInput st
         atomically $ do xs  <- readTChan cc
                         xs' <- takeTMVar cs
                         putTMVar cs $ xs' ++ xs
-        schedule $ updateList query
+        schedule $ updateList queryString
         return ()
 
       appendItem :: String -> IO ()
@@ -119,12 +119,12 @@ uiMain = do
       canRefresh = atomically $ (||) <$> readTMVar collecting
                                      <*> liftM not (isEmptyTChan cc)
 
-  forkIO $ do
+  _ <- forkIO $ do
     collect cc "."
-    atomically $ swapTMVar collecting False
+    _ <- atomically $ swapTMVar collecting False
     return ()
 
-  forkIO $ whileM_ canRefresh refreshList
+  _ <- forkIO $ whileM_ canRefresh refreshList
 
   fg `onKeyPressed` handleGlobal
 
