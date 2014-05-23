@@ -5,7 +5,7 @@ module FS (
 ) where
 
 import           Control.Applicative    ((<$>), (<*>))
-import           Control.Concurrent.STM (TChan, atomically, writeTChan)
+import           Control.Concurrent.STM (TMVar, atomically, putTMVar, takeTMVar)
 import           Control.Monad          (filterM, liftM, (>=>))
 import           Data.List              (elemIndex, isPrefixOf, isSuffixOf)
 import           System.Directory       (doesDirectoryExist,
@@ -13,15 +13,18 @@ import           System.Directory       (doesDirectoryExist,
                                          getUserDocumentsDirectory)
 import           System.FilePath        ((</>))
 
-collect :: TChan [FilePath] -> FilePath -> IO ()
-collect cc base = do
+
+--------------------------------------------------------------------------------
+-- | Recursively collects every path under the given path into the TMVar.
+collect :: TMVar [FilePath] -> FilePath -> IO ()
+collect cs base = do
   fs <- qualify =<< contentsOf
-  atomically $ writeTChan cc fs
+  atomically $ takeTMVar cs >>= putTMVar cs . flip (++) fs
   directories fs
  where qualify     = mapM $ return . (base </>)
        validFile   = (&&) <$> (not . isPrefixOf ".") <*> (not . isSuffixOf ".pyc")
        contentsOf  = filterM (return . validFile) =<< getDirectoryContents base
-       directories = filterM doesDirectoryExist >=> mapM_ (collect cc)
+       directories = filterM doesDirectoryExist >=> mapM_ (collect cs)
 
 fuzzyMatch :: String -> FilePath -> Bool
 fuzzyMatch    []  _ = True

@@ -1,12 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
 
 module UI ( uiMain ) where
 
-import           Control.Applicative      ((<$>), (<*>))
-import           Control.Concurrent       (forkIO)
-import           Control.Concurrent.STM   (atomically, isEmptyTChan, newTChan,
-                                           newTMVar, putTMVar, readTChan,
-                                           readTMVar, swapTMVar, takeTMVar)
+import           Control.Concurrent       (forkIO, threadDelay)
+import           Control.Concurrent.STM   (atomically, newTMVar, readTMVar,
+                                           swapTMVar)
 import           Control.Monad            (liftM, when)
 import           Control.Monad.Loops      (whileM_)
 import qualified Data.Text                as T
@@ -17,17 +16,31 @@ import           System.Exit              (exitFailure, exitSuccess)
 
 import           FS                       (collect, fuzzyMatch, socketPath)
 
+
+--------------------------------------------------------------------------------
+-- ATTRIBUTES
+--------------------------------------------------------------------------------
+-- | How list items look.
+liAttr :: Attr
+liAttr = black `on` white
+
+--------------------------------------------------------------------------------
+-- | How the text input looks.
+inputAttr :: Attr
+inputAttr = white `on` black
+
+
+--------------------------------------------------------------------------------
+-- Data
+--------------------------------------------------------------------------------
+-- | Represents the term UI.
 data UI = UI { uiList       :: Widget (List T.Text FormattedText)
              , uiProgress   :: Widget FormattedText
              , uiInput      :: Widget Edit
              , uiCollection :: Collection }
 
-liAttr :: Attr
-liAttr = black `on` white
-
-inputAttr :: Attr
-inputAttr = white `on` black
-
+--------------------------------------------------------------------------------
+-- | Returns the initial state of the UI.
 initialUI :: IO UI
 initialUI = do
   lw <- newTextList liAttr []
@@ -42,6 +55,8 @@ initialUI = do
             , uiInput      = iw
             , uiCollection = c  }
 
+--------------------------------------------------------------------------------
+-- | Writes the current selection to the socket.
 printSelection :: UI -> IO ()
 printSelection st = do
   selected <- getSelected (uiList st)
@@ -56,12 +71,17 @@ printSelection st = do
                           else "$EDITOR '") ++ f ++ "'\n"
       exitSuccess
 
+--------------------------------------------------------------------------------
+-- | Returns the height of the current terminal.
+terminalHeight :: IO Int
+terminalHeight = liftM (fromIntegral . region_height) $ terminal_handle >>= display_bounds
+
 uiMain :: IO ()
 uiMain = do
-  cc         <- atomically newTChan
   cs         <- atomically $ newTMVar []
   collecting <- atomically $ newTMVar True
 
+  th <- terminalHeight
   st <- initialUI
   ui <- centered =<<      return (uiList st)
                      <--> return (uiProgress st)
@@ -73,7 +93,7 @@ uiMain = do
   _  <- addToFocusGroup fg $ uiList st
 
   let query :: String -> [FilePath] -> [FilePath]
-      query s = filter $ fuzzyMatch s
+      query = filter . fuzzyMatch
 
       updateList :: T.Text -> IO ()
       updateList t = do
@@ -83,7 +103,7 @@ uiMain = do
             pg = show (length fs) ++ "/" ++ show (length xs)
         setText (uiProgress st) $ T.pack pg
         clearList $ uiList st
-        mapM_ appendItem $ take 100 fs
+        mapM_ appendItem $ take (th - 2) fs
         case mli of
           Nothing     -> return ()
           Just (i, _) -> do
@@ -93,9 +113,6 @@ uiMain = do
       refreshList :: IO ()
       refreshList = do
         queryString <- getEditText $ uiInput st
-        atomically $ do xs  <- readTChan cc
-                        xs' <- takeTMVar cs
-                        putTMVar cs $ xs' ++ xs
         schedule $ updateList queryString
         return ()
 
@@ -115,16 +132,16 @@ uiMain = do
                    | k == KASCII 'w' = setEditText (uiInput st) T.empty
                    | otherwise       = return ()
 
-      canRefresh :: IO Bool
-      canRefresh = atomically $ (||) <$> readTMVar collecting
-                                     <*> liftM not (isEmptyTChan cc)
-
-  _ <- forkIO $ do
-    collect cc "."
-    _ <- atomically $ swapTMVar collecting False
+  forkIO $ do
+    collect cs "."
+    atomically $ swapTMVar collecting False
+    refreshList
     return ()
 
-  _ <- forkIO $ whileM_ canRefresh refreshList
+  forkIO $
+    whileM_ (atomically $ readTMVar collecting) $ do
+      refreshList
+      threadDelay 250000
 
   fg `onKeyPressed` handleGlobal
 
