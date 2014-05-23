@@ -2,6 +2,10 @@
 
 A fuzzy finder for the terminal.
 
+## Demo
+
+![Demo](demo.gif)
+
 ## Installation
 
     git clone https://github.com/Bogdanp/ff.git
