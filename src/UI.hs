@@ -8,7 +8,10 @@ import           Control.Concurrent.STM   (atomically, newTMVar, readTMVar,
                                            swapTMVar)
 import           Control.Monad            (liftM, when)
 import           Control.Monad.Loops      (whileM_)
+import           Data.Text                (Text)
 import qualified Data.Text                as T
+import           Data.Vector              (Vector)
+import qualified Data.Vector              as V
 import           Graphics.Vty
 import           Graphics.Vty.Widgets.All
 import           System.Directory         (doesDirectoryExist)
@@ -78,7 +81,7 @@ terminalHeight = liftM (fromIntegral . region_height) $ terminal_handle >>= disp
 
 uiMain :: IO ()
 uiMain = do
-  cs         <- atomically $ newTMVar []
+  cs         <- atomically $ newTMVar V.empty
   collecting <- atomically $ newTMVar True
 
   th <- terminalHeight
@@ -92,18 +95,18 @@ uiMain = do
   _  <- addToFocusGroup fg $ uiInput st
   _  <- addToFocusGroup fg $ uiList st
 
-  let query :: String -> [FilePath] -> [FilePath]
-      query = filter . fuzzyMatch
+  let query :: String -> Vector Text -> Vector Text
+      query = V.filter . fuzzyMatch
 
       updateList :: T.Text -> IO ()
       updateList t = do
         mli <- getSelected $ uiList st
         xs  <- atomically $ readTMVar cs
         let fs = query (T.unpack t) xs
-            pg = show (length fs) ++ "/" ++ show (length xs)
+            pg = show (V.length fs) ++ "/" ++ show (V.length xs)
         setText (uiProgress st) $ T.pack pg
         clearList $ uiList st
-        mapM_ appendItem $ take (th - 2) fs
+        V.mapM_ appendItem $ V.take (th - 2) fs
         case mli of
           Nothing     -> return ()
           Just (i, _) -> do
@@ -116,9 +119,8 @@ uiMain = do
         schedule $ updateList queryString
         return ()
 
-      appendItem :: String -> IO ()
-      appendItem s = let text = T.pack s
-                      in plainText text >>= addToList (uiList st) text
+      appendItem :: Text -> IO ()
+      appendItem t = plainText t >>= addToList (uiList st) t
 
       handleGlobal :: a -> Key -> [Modifier] -> IO Bool
       handleGlobal _ k ms | k == KEnter     = activateCurrentItem (uiList st) >> return False

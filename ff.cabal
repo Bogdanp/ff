@@ -1,7 +1,7 @@
 name:                ff
 version:             0.1.0.0
 synopsis:            A fuzzy finder
--- description:         
+-- description:
 homepage:            http://defn.io
 license:             MIT
 license-file:        LICENSE
@@ -10,13 +10,13 @@ maintainer:          popa.bogdanp@gmail.com
 copyright:           2014 Bogdan Popa
 category:            Development
 build-type:          Simple
--- extra-source-files:  
+-- extra-source-files:
 cabal-version:       >=1.10
 
 executable ff
   main-is:             Main.hs
-  -- other-modules:       
-  -- other-extensions:    
+  -- other-modules:
+  -- other-extensions:
   build-depends:       base        >=4.6 && <4.7
                      , containers  ==0.5.*
                      , directory   ==1.2.*
@@ -25,6 +25,7 @@ executable ff
                      , stm         ==2.4.*
                      , text        ==0.11.*
                      , unix        ==2.6.*
+                     , vector      ==0.10.*
                      , vty         ==4.7.*
                      , vty-ui      ==1.6.*
   ghc-options:         -O2 -threaded
