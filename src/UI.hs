@@ -3,7 +3,7 @@
 
 module UI ( uiMain ) where
 
-import           Control.Concurrent       (forkIO, threadDelay)
+import           Control.Concurrent       (forkIO, forkOS, threadDelay)
 import           Control.Concurrent.STM   (atomically, newTMVar, readTMVar,
                                            swapTMVar)
 import           Control.Monad            (liftM, when)
@@ -134,7 +134,7 @@ uiMain = do
                    | k == KASCII 'w' = setEditText (uiInput st) T.empty
                    | otherwise       = return ()
 
-  forkIO $ do
+  forkOS $ do
     collect cs "."
     atomically $ swapTMVar collecting False
     refreshList
