@@ -17,7 +17,7 @@ import           Graphics.Vty.Widgets.All
 import           System.Directory         (doesDirectoryExist)
 import           System.Exit              (exitFailure, exitSuccess)
 
-import           FS                       (collect, fuzzyMatch, socketPath)
+import           FS                       (collect, fuzzySort, socketPath)
 
 
 --------------------------------------------------------------------------------
@@ -95,14 +95,11 @@ uiMain = do
   _  <- addToFocusGroup fg $ uiInput st
   _  <- addToFocusGroup fg $ uiList st
 
-  let query :: String -> Vector Text -> Vector Text
-      query = V.filter . fuzzyMatch
-
-      updateList :: T.Text -> IO ()
+  let updateList :: T.Text -> IO ()
       updateList t = do
         mli <- getSelected $ uiList st
         xs  <- atomically $ readTMVar cs
-        let fs = query (T.unpack t) xs
+        let fs = fuzzySort (T.unpack t) xs
             pg = show (V.length fs) ++ "/" ++ show (V.length xs)
         setText (uiProgress st) $ T.pack pg
         clearList $ uiList st

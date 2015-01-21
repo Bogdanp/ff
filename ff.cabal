@@ -26,6 +26,7 @@ executable ff
                      , text
                      , unix
                      , vector
+                     , vector-algorithms
                      , vty
                      , vty-ui
   ghc-options:         -O2 -threaded
