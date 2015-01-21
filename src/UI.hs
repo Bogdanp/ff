@@ -46,12 +46,12 @@ data UI = UI { uiList       :: Widget (List T.Text FormattedText)
 -- | Returns the initial state of the UI.
 initialUI :: IO UI
 initialUI = do
-  lw <- newTextList liAttr []
+  lw <- newTextList [] 1
         >>= withFocusAttribute liAttr
   pw <- textWidget wrap "0/0"
   iw <- editWidget
-        >>= withFocusAttribute inputAttr
         >>= withNormalAttribute inputAttr
+        >>= withFocusAttribute inputAttr
   c  <- newCollection
   return UI { uiList       = lw
             , uiProgress   = pw
@@ -77,7 +77,7 @@ printSelection st = do
 --------------------------------------------------------------------------------
 -- | Returns the height of the current terminal.
 terminalHeight :: IO Int
-terminalHeight = liftM (fromIntegral . region_height) $ terminal_handle >>= display_bounds
+terminalHeight = liftM (fromIntegral . regionHeight) $ standardIOConfig >>= outputForConfig >>= displayBounds
 
 uiMain :: IO ()
 uiMain = do
@@ -128,10 +128,10 @@ uiMain = do
                           | otherwise       = return False
 
       handleCtrl :: Key -> IO ()
-      handleCtrl k | k == KASCII 'c' = exitFailure
-                   | k == KASCII 'p' = scrollUp $ uiList st
-                   | k == KASCII 'n' = scrollDown $ uiList st
-                   | k == KASCII 'w' = setEditText (uiInput st) T.empty
+      handleCtrl k | k == KChar 'c' = exitFailure
+                   | k == KChar 'p' = scrollUp $ uiList st
+                   | k == KChar 'n' = scrollDown $ uiList st
+                   | k == KChar 'w' = setEditText (uiInput st) T.empty
                    | otherwise       = return ()
 
   forkOS $ do
