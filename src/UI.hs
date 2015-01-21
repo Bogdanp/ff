@@ -99,8 +99,9 @@ uiMain = do
       updateList t = do
         mli <- getSelected $ uiList st
         xs  <- atomically $ readTMVar cs
-        let fs = fuzzySort (T.unpack t) xs
-            pg = show (V.length fs) ++ "/" ++ show (V.length xs)
+        let c  = V.length fs
+            fs = fuzzySort (T.unpack t) xs
+            pg = show c ++ "/" ++ show c
         setText (uiProgress st) $ T.pack pg
         clearList $ uiList st
         V.mapM_ appendItem $ V.take (th - 2) fs
