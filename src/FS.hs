@@ -53,7 +53,7 @@ fuzzyMatch s p = fuzzyMatch' s p 0
 fuzzyMatch' :: String -> Text -> Double -> (Bool, Double, Text)
 fuzzyMatch'    []  p n = (True, n, p)
 fuzzyMatch' (x:xs) p n = maybe (False, n, p) match $ x `elemIndex` p
- where match i   = let (b', n', p') = fuzzyMatch' xs (T.drop i p) (n + fromIntegral i)
+ where match i   = let (b', n', _) = fuzzyMatch' xs (T.drop i p) (n + fromIntegral i)
                     in (b', n', p)
        elemIndex = T.findIndex . (==)
 
