@@ -59,7 +59,8 @@ fuzzyMatch' (x:xs) p n = maybe (False, n, p) match $ x `elemIndex` p
 
 
 fuzzySort :: String -> Vector Text -> Vector Text
-fuzzySort s xs = V.map ext $ V.modify (sortBy cmp) $ V.filter flt $ V.map (fuzzyMatch s) xs
+fuzzySort [] xs = xs
+fuzzySort  s xs = V.map ext $ V.modify (sortBy cmp) $ V.filter flt $ V.map (fuzzyMatch s) xs
  where cmp (_, n, _) (_, n', _) = n `compare` n'
        flt (b, _, _) = b
        ext (_, _, t) = t
