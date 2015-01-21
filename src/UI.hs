@@ -3,7 +3,7 @@
 
 module UI ( uiMain ) where
 
-import           Control.Concurrent       (forkIO, forkOS, threadDelay)
+import           Control.Concurrent       (forkIO, threadDelay)
 import           Control.Concurrent.STM   (atomically, newTMVar, readTMVar,
                                            swapTMVar)
 import           Control.Monad            (liftM, when)
@@ -131,16 +131,15 @@ uiMain = do
                    | k == KChar 'w' = setEditText (uiInput st) T.empty
                    | otherwise       = return ()
 
-  forkOS $ do
+  forkIO $ do
     collect cs "."
     atomically $ swapTMVar collecting False
     refreshList
-    return ()
 
   forkIO $
     whileM_ (atomically $ readTMVar collecting) $ do
       refreshList
-      threadDelay 250000
+      threadDelay 1000
 
   fg `onKeyPressed` handleGlobal
 
