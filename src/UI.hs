@@ -10,7 +10,6 @@ import           Control.Monad            (liftM, when)
 import           Control.Monad.Loops      (whileM_)
 import           Data.Text                (Text)
 import qualified Data.Text                as T
-import           Data.Vector              (Vector)
 import qualified Data.Vector              as V
 import           Graphics.Vty
 import           Graphics.Vty.Widgets.All
